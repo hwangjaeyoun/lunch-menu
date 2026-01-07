@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>우리 점심 뭐 먹지?</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #FF6B6B; --bg: #F8F9FA; --card: #FFFFFF; --text: #333; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 400px; background: var(--card); padding: 24px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        h1 { font-weight: 800; font-size: 24px; text-align: center; color: var(--primary); margin-bottom: 20px; }
+        .result-box { background: #FFF0F0; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; border: 2px dashed var(--primary); }
+        #selected-menu { font-size: 28px; font-weight: 800; color: var(--primary); display: block; margin-top: 10px; }
+        .btn-main { background: var(--primary); color: white; width: 100%; font-size: 18px; padding: 16px; border: none; border-radius: 15px; font-weight: 700; cursor: pointer; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(255,107,107,0.3); }
+        .input-group { display: flex; gap: 8px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; border: 1px solid #DDD; border-radius: 10px; outline: none; }
+        .btn-add { background: #333; color: white; border: none; border-radius: 10px; padding: 0 15px; cursor: pointer; }
+        .menu-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #F0F0F0; font-size: 15px; }
+        .menu-actions button { margin-left: 5px; padding: 4px 8px; border-radius: 5px; border: 1px solid #DDD; background: white; cursor: pointer; font-size: 12px; }
+        .btn-del { color: #ff4d4d; }
+        .history-tag { font-size: 10px; color: white; background: #FFADAD; padding: 2px 5px; border-radius: 4px; margin-left: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🍴 점심 메뉴 추천</h1>
+    <div class="result-box">
+        <span>오늘의 메뉴는?</span>
+        <strong id="selected-menu">???</strong>
+    </div>
+    <button class="btn-main" onclick="pickLunch()">메뉴 랜덤 뽑기!</button>
+
+    <div class="input-group">
+        <input type="text" id="menu-input" placeholder="새 메뉴 입력">
+        <button class="btn-add" onclick="addNewMenu()">등록</button>
+    </div>
+
+    <div style="font-size: 14px; font-weight: 600; color: #888; margin-bottom: 10px;">전체 메뉴 관리</div>
+    <div id="menu-list-ui"></div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD81V5_SpVFegaBiVAYX3cQoTfFERsU4co",
+  authDomain: "lunch-17f91.firebaseapp.com",
+  projectId: "lunch-17f91",
+  storageBucket: "lunch-17f91.firebasestorage.app",
+  messagingSenderId: "708783829174",
+  appId: "1:708783829174:web:b482e32d49571406657617",
+  measurementId: "G-1DGKFF4VRM"
+};
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 데이터 불러오기 및 UI 렌더링
+    async function loadData() {
+        const menuSnap = await getDocs(collection(db, "menus"));
+        const configSnap = await getDoc(doc(db, "config", "history"));
+        const history = configSnap.exists() ? configSnap.data().lastPicks : [];
+        
+        const listUi = document.getElementById('menu-list-ui');
+        listUi.innerHTML = '';
+
+        menuSnap.forEach((docSnap) => {
+            const data = docSnap.data();
+            const isHistory = history.includes(data.name);
+            listUi.innerHTML += `
+                <div class="menu-item">
+                    <span>${data.name} ${isHistory ? '<span class="history-tag">최근선정</span>' : ''}</span>
+                    <div class="menu-actions">
+                        <button onclick="editMenu('${docSnap.id}', '${data.name}')">수정</button>
+                        <button class="btn-del" onclick="deleteMenu('${docSnap.id}')">삭제</button>
+                    </div>
+                </div>`;
+        });
+        return { history, menus: menuSnap.docs.map(d => d.data().name) };
+    }
+
+    // 메뉴 등록
+    window.addNewMenu = async () => {
+        const name = document.getElementById('menu-input').value;
+        if(!name) return;
+        await addDoc(collection(db, "menus"), { name: name });
+        location.reload();
+    };
+
+    // 메뉴 삭제
+    window.deleteMenu = async (id) => {
+        if(confirm("정말 삭제하시겠습니까?")) {
+            await deleteDoc(doc(db, "menus", id));
+            location.reload();
+        }
+    };
+
+    // 메뉴 수정
+    window.editMenu = async (id, oldName) => {
+        const newName = prompt("메뉴 이름을 수정하세요", oldName);
+        if(newName && newName !== oldName) {
+            await updateDoc(doc(db, "menus", id), { name: newName });
+            location.reload();
+        }
+    };
+
+    // 메뉴 뽑기 (3회 중복 방지 로직)
+    window.pickLunch = async () => {
+        const { history, menus } = await loadData();
+        const available = menus.filter(m => !history.includes(m));
+
+        if(available.length === 0) return alert("뽑을 수 있는 메뉴가 없습니다!");
+
+        const selected = available[Math.floor(Math.random() * available.length)];
+        document.getElementById('selected-menu').innerText = selected;
+
+        const newHistory = [selected, ...history].slice(0, 3);
+        await updateDoc(doc(db, "config", "history"), { lastPicks: newHistory });
+    };
+
+    loadData();
+</script>
+</body>
+</html>
