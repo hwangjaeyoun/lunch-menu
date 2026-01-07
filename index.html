@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="이미지주소.png"> ```
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>우리 점심 뭐 먹지?</title>
@@ -32,6 +36,28 @@
     </div>
     <button class="btn-main" onclick="pickLunch()">메뉴 랜덤 뽑기!</button>
 
+<style>
+    .btn-reset {
+        background: none;
+        border: 1px solid #ccc;
+        color: #999;
+        font-size: 12px;
+        padding: 5px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        float: right; /* 우측 정렬 */
+    }
+    .btn-reset:hover { background: #f0f0f0; color: #666; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+</style>
+
+<div class="list-section">
+    <div class="section-header">
+        <div style="font-size: 14px; font-weight: 600; color: #888;">전체 메뉴 관리</div>
+        <button class="btn-reset" onclick="resetHistory()">히스토리 리셋</button>
+    </div>
+    <div id="menu-list-ui"></div>
+</div>
     <div class="input-group">
         <input type="text" id="menu-input" placeholder="새 메뉴 입력">
         <button class="btn-add" onclick="addNewMenu()">등록</button>
@@ -106,6 +132,25 @@ const firebaseConfig = {
         }
     };
 
+// 1. 히스토리 리셋 함수 추가
+window.resetHistory = async () => {
+    if (confirm("최근 3회 당첨 기록을 초기화하시겠습니까?\n이제 모든 메뉴가 다시 선택 후보에 포함됩니다.")) {
+        try {
+            const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+            
+            // Firebase의 config/history 문서의 lastPicks 배열을 빈 배열로 업데이트
+            await updateDoc(doc(db, "config", "history"), { 
+                lastPicks: [] 
+            });
+
+            alert("히스토리가 초기화되었습니다!");
+            location.reload(); // 화면 새로고침하여 반영
+        } catch (error) {
+            console.error("리셋 중 오류 발생:", error);
+            alert("초기화에 실패했습니다.");
+        }
+    }
+};
     // 메뉴 뽑기 (3회 중복 방지 로직)
     window.pickLunch = async () => {
         const { history, menus } = await loadData();
@@ -124,3 +169,4 @@ const firebaseConfig = {
 </script>
 </body>
 </html>
+
